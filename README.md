@@ -71,7 +71,7 @@ e467dfa0-b598-483f-a8ae-cfd2d9004c0f    28.9    2.1     98      126     TCGCTCTA
 3a8e11e7-238c-434f-bfb3-a37e6858ab4b    44.8    1.3     104     132     TCGCTCTATC      TTCTTTTCTTTTCTTTTCTTTTTTTTTT    84      1.0     42=
 ```
 
-- 30 bases long poly-A tails with a single terminal U base (-U)
+- 30 bases long poly-A tails with a single terminal U base `-U`
 ```bash
 read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
 4fc31a31-aaf9-481b-a9e2-cb8f04622485    35.0    2.4     108     129     CTATCTTTAA      TTTTTTTTTTTTTTTTTTTTT   71      0.974   19=1I18=4S
@@ -81,7 +81,7 @@ e41cc3d2-8855-4d0d-85a2-849fe9d193ff    17.3    2.7     104     123     GTATTTTT
 1142c841-8716-4956-90e1-372a3fc1a675    22.9    2.1     107     116     TCTATCTTCA      TTTTTTTTT       68      0.905   8=1D3=2X26=1D3=
 ```
 
-- 30 bases long poly-A tails with 3 terminal U bases (-UUU)
+- 30 bases long poly-A tails with 3 terminal U bases `-UUU`
 ```bash
 read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
 1ba6eb7c-2319-4c79-aa05-c967a13eeeb1    25.0    1.9     106     126     TATCTTCAAA      TTTTTTTTTTTTTTTTTTTT    78      1.0     39=3S
@@ -91,7 +91,7 @@ read_id pt_length       per_base        pt_start        pt_end  before_pt       
 2d2d3344-00f8-4245-9015-cbcc80eb3d2d    25.8    1.9     115     139     ATCTTAGAAA      TTTTTTTTTTTTTTTTTTTTTTTT        76      1.0     38=4S
 ```
 
-- 30 bases long poly-A tails with 5 terminal U bases (-UUUUU)
+- 30 bases long poly-A tails with 5 terminal U bases `-UUUUU`
 ```bash
 read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
 0c6a6d34-d8fd-4f73-8f89-230d94e03992    31.6    1.9     104     124     TCTTCAAAAA      TTTTTTTTTTTTTTTTTTTT    57      0.872   9=1I17=1X1=1D1=1D1=1X7=3S
@@ -101,7 +101,7 @@ a8d4c6d5-91d8-4bd2-b875-93d0ea42415e    32.0    2.3     109     120     TCTTCAAA
 f62e13f2-0371-4c1e-9b46-3c9e04cebc9c    22.1    1.9     102     114     TCTTCAAAAA      TTTTTTTTTTTT    78      1.0     39=3S
 ```
 
-- 30 bases long poly-A tails with 5 terminal C bases (-CCCCC)
+- 30 bases long poly-A tails with 5 terminal C bases `-CCCCC`
 ```bash
 read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
 3ea026df-19e1-4102-9a6d-edb01697fc87    22.7    1.6     105     116     TCTTCGGGGG      TTTTTTTTTTT     78      1.0     39=3S
@@ -111,7 +111,7 @@ e6294bc0-b45b-459e-bf14-25c9eac0f6bf    24.1    1.9     110     120     TCTTCGGG
 0da31119-fbef-4009-98b5-9303f6673b73    21.5    1.9     109     133     TCTTCGGGGG      TTTTTTTTTTTTTTTTTTTTTTTT        78      1.0     39=3S
 ```
 
-- 30 bases long poly-A tails with 5 terminal G bases (-GGGGG)
+- 30 bases long poly-A tails with 5 terminal G bases `-GGGGG`
 ```bash
 read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
 06780cfc-a5b2-4401-8835-84fa5a355378    22.9    2.1     110     118     ATCTTCCCCC      TTTTTTTT        78      1.0     39=3S
