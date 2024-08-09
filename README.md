@@ -9,6 +9,12 @@ pip install matplotlib numpy parasail pysam pandas seaborn
 ```
 
 ## How to run?
+First, basecall you reads saving `mv` table in BAM file 
+using [dorado](https://github.com/nanoporetech/dorado)
+```bash
+dorado basecaller -x cuda:all --emit-moves -r MODEL pod5_dir > bam_with_move_table.bam
+```
+
 You can estimate poly-T tail length and composition using:
 ```bash
 src/get_pT.py -b bam_with_move_table.bam > pT.tsv
