@@ -61,7 +61,7 @@ def correct_alg(cigar, ts, qs, w=6, k=3, pat=re.compile(r'\d+')):
             if op!="I": talg += l
     return cigar[idx:], ts, qs, n_anchors, nm, qalg, talg
 
-def get_pt_boundaries(seq, pt_start, pat=re.compile(r'((\w?T{2,}\w?)+)', re.IGNORECASE), before=10, after=50):
+def get_pt_boundaries(seq, pt_start, pat=re.compile(r'((T{2,}\w?)+)', re.IGNORECASE), before=10, after=50):
     start = end = 0
     for m in pat.finditer(seq[pt_start-before:pt_start+after]):
         s, e = m.span()
@@ -70,7 +70,7 @@ def get_pt_boundaries(seq, pt_start, pat=re.compile(r'((\w?T{2,}\w?)+)', re.IGNO
         e = pt_start + e - before - 1 # we include nonT start/end
         if e-s > end - start:
             start, end = s, e
-    return start, end
+    return start-1, end
 
 def alg2pt(a, primer, profile, open_penalty, extend_penalty, extension=5, analyse_first=250):
     """Return sequence flanking pt, pt start, pt end, pt length, pt sequence, alignment score, identity and cigar"""
@@ -124,13 +124,13 @@ def get_pT(out, bam, readidsfn, primer, #mapq=10, max_dist=10,
     comment = ""
     out.write("read_id\tpt_length\tper_base\tpt_start\tpt_end\tbefore_pt\tpt_seq\tscore\tidentity\tcigar\tcomments\n")
     for ai, a in enumerate(sam, 1):
-        if not ai%1000: logger.write(f"{ai:,} \r")
+        if not ai%1000: logger.write(f" {ai:,} \r")
         readid = a.qname
         if readids:
             if readid not in readids: continue
             comment = readids[readid]
         #e = a.aend if a.is_reverse else a.pos
-        #if a.is_secondary or a.is_supplementary or a.mapq<mapq or abs(e-ref2len[ref])>max_dist: continue
+        if a.is_secondary: continue # or a.is_supplementary or a.mapq<mapq or abs(e-ref2len[ref])>max_dist: continue
         pt_data = alg2pt(a, primer, profile, open_penalty, extend_penalty)        
         out.write(f"%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(readid, *pt_data, comment))
     if logger: logger.write(f" {ai:,} reads processed.\n")
