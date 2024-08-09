@@ -2,25 +2,30 @@
 
 ## Installation
 
-You'll need to install several Python packages using pip:
+You'll need Python 3.8+ and install following packaged 
+using [pip](https://pip.pypa.io/):
 
 ```bash
-pip install matplotlib numpy parasail pysam pandas seaborn
+pip install matplotlib numpy parasail pybedtools pysam pandas scipy seaborn
 ```
 
 ## How to run?
-First, basecall you reads saving `mv` table in BAM file 
+
+0. Basecall you reads saving `mv` table in BAM file 
 using [dorado](https://github.com/nanoporetech/dorado)
 ```bash
 dorado basecaller -x cuda:all --emit-moves -r MODEL pod5_dir > bam_with_move_table.bam
 ```
+For the most accurate poly-T composition calling we recommend using the latest `sup` 
+[model](https://github.com/nanoporetech/dorado?tab=readme-ov-file#dna-models). 
 
-You can estimate poly-T tail length and composition using:
+1. Estimate poly-T tail length and composition
+You can use all reads
 ```bash
 src/get_pT.py -b bam_with_move_table.bam > pT.tsv
 ```
 
-Since, N3Pseq captures all transcripts (also fragmented ones),
+Since N3Pseq captures all transcripts (also fragmented ones),
 you may want to subset the analysis only to reads that end at
 one of the annotated poly-A sites.
 
