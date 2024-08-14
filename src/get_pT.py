@@ -6,6 +6,7 @@ in order to facilitate better primer alignment.
 
 TODO:
 - composition score
+- report single pT estimate per read - using terminal alg
 """
 epilog="""Author: l.p.pryszcz+git@gmail.com
 Torredembarra/Barcelona/Mizerów, 9/08/2024
@@ -21,6 +22,7 @@ import re
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import HTSeq
 from datetime import datetime
 
 def correct_alg(cigar, ts, qs, w=6, k=3, pat=re.compile(r'\d+')):
@@ -100,7 +102,7 @@ def alg2pt(a, primer, profile, open_penalty, extend_penalty, extension=5, analys
     #return seq[pt_start-10:pt_start+50], s, e, pt_len, seq[s:e], r.score, identity, cigar
     return pt_len, per_base, s, e, seq[s-10:s], seq[s:e], r.score, identity, cigar
 
-def get_pT(out, bam, readidsfn, primer, #mapq=10, max_dist=10, 
+def get_pT(out, bam, readidsfn, endsfn, primer, #mapq=10, max_dist=10, 
            minscore=20, scoring=(2, 3, 3, 2), logger=sys.stderr):
 
     # init primer aligner
@@ -110,6 +112,7 @@ def get_pT(out, bam, readidsfn, primer, #mapq=10, max_dist=10,
 
     # load readids
     readids = {}
+    ends = {}
     if readidsfn:
         if logger: logger.write(f"Loading read ids...\n")
         for l in open(readidsfn, "rt"):
@@ -117,22 +120,32 @@ def get_pT(out, bam, readidsfn, primer, #mapq=10, max_dist=10,
             ldata = l[:-1].split("\t")
             readids[ldata[0]] = "\t".join(ldata[1:])
         if logger: logger.write(f" {len(readids):,} entries loaded.\n")
+    elif endsfn:
+        ends = HTSeq.GenomicArrayOfSets("auto", stranded=True)
+        for f in HTSeq.BED_Reader(endsfn):
+            ends[f.iv] = (f.name, f.thick.start)
     
     if logger: logger.write(f"Processing reads...\n")
     sam = pysam.AlignmentFile(bam)
     #ref2len = {r: l for r, l in zip(sam.references, sam.lengths)
-    comment = ""
-    out.write("read_id\tpt_length\tper_base\tpt_start\tpt_end\tbefore_pt\tpt_seq\tscore\tidentity\tcigar\tcomments\n")
+    out.write("read_id\tpt_length\tper_base\tpt_start\tpt_end\tbefore_pt\tpt_seq\tscore\tidentity\tcigar\ttranscript_end\tdistance\n")
     for ai, a in enumerate(sam, 1):
         if not ai%1000: logger.write(f" {ai:,} \r")
+        # skip not primary agls
+        if a.flag&2304: continue
         readid = a.qname
+        comment = dist = ""
         if readids:
             if readid not in readids: continue
             comment = readids[readid]
-        #e = a.aend if a.is_reverse else a.pos
-        if a.is_secondary: continue # or a.is_supplementary or a.mapq<mapq or abs(e-ref2len[ref])>max_dist: continue
-        pt_data = alg2pt(a, primer, profile, open_penalty, extend_penalty)        
-        out.write(f"%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(readid, *pt_data, comment))
+        elif ends and a.reference_name in ends.chrom_vectors:
+            # --firststrand
+            e, strand = (a.aend, "+") if a.is_reverse else (a.pos, "-")
+            p = HTSeq.GenomicInterval(a.reference_name, e, e+1, strand)
+            comment = ";".join([v[0] for iv, v in ends[p].steps() if v])
+            dist = ";".join(map(str, [abs(e-v[1]) for iv, v in ends[p].steps() if v]))
+        pt_data = alg2pt(a, primer, profile, open_penalty, extend_penalty)
+        out.write(f"%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(readid, *pt_data, comment, dist))
     if logger: logger.write(f" {ai:,} reads processed.\n")
 
 def main():
@@ -145,6 +158,8 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="verbose")    
     parser.add_argument("-b", "--bam", required=True, 
                         help="input BAM file with `ts` and `mv` tags")
+    parser.add_argument("-e", "--ends", default="", 
+                        help="file with alternative ends")
     parser.add_argument("-i", "--readids", default="", 
                         help="file with read ids [use all reads]")
     parser.add_argument("-o", "--out", default=sys.stdout, type=argparse.FileType("w"), 
@@ -164,7 +179,7 @@ def main():
     if o.verbose: 
         sys.stderr.write("Options: %s\n"%str(o))
 
-    get_pT(o.out, o.bam, o.readids, o.primer)
+    get_pT(o.out, o.bam, o.readids, o.ends, o.primer)
     
 if __name__=='__main__': 
     t0 = datetime.now()

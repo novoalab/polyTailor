@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-desc="""Get alternative poly-A sites from BAM files and report their frequencies and counts.
+desc="""Get alternative transcript ends (poly-A sites) from BAM files
+and report their frequencies and counts.
 """
 epilog="""Author: l.p.pryszcz+git@gmail.com
-Barcelona, 28/2/2022
+Barcelona/Mizerów, 9/08/2024
 """
 
 import csv, gzip, os, sys
 import matplotlib.pyplot as plt, numpy as np, pysam, seaborn as sns 
 from datetime import datetime
-from scipy.signal import find_peaks
 from pybedtools import BedTool
+from multiprocessing import Pool
+from scipy.signal import find_peaks
 
 def get_peaks(counts, prominence=5, dist=10, min_count=25):
     """Return peaks and their boundaries"""
@@ -50,34 +52,60 @@ def get_counts(sams, ref, s, e, strand, mapq=10, firststrand=False, extend=0):
             counts[fi, p] += 1
     return counts
 
-def get_pA_sites(outfn, gff, fnames, samples=[], min_count=25, mapq=10,
-                 firststrand=False, extend=2000, min_frac=0.05, 
+def _init_args(*args):
+    global sams, mapq, firststrand, extend
+    fnames, mapq, firststrand, extend = args
+    sams = [pysam.AlignmentFile(fn) for fn in fnames]
+    # ignore invalid
+    np.seterr(invalid='ignore') #divide, over, under, invalid
+
+def worker(args):
+    feature, name, ref, s, e, strand = args
+    counts = get_counts(sams, ref, s, e, strand, mapq, firststrand, extend)
+    return counts
+
+def get_pA_sites(outfn, gtf, fnames, samples=[], min_count=25, mapq=10,
+                 firststrand=False, extend=2000, min_frac=0.05, threads=6, 
                  verbose=False, logger=sys.stderr.write):
     """Report frequencies and counts for alternative polyA sites from BAM"""
+    if os.path.isfile(outfn):
+        logger(f"File exists: {outfn}!\n")
+        return
     # get sample names
     if not samples: samples = [os.path.basename(fn)[:-4] for fn in fnames]
     else: assert len(samples)==len(fnames), "Number of samples has to match number of BAM files!"
     
-    # open SAM files
-    sams = [pysam.AlignmentFile(fn) for fn in fnames]
     # get gene locations
-    ann = BedTool(gff)
+    ann = BedTool(gtf)
     genes = ann.filter(lambda x: x[2].endswith("gene"))
+    # fill args
+    args, refs = [], set()
+    for i, g in enumerate(genes, 1):
+        # g.attrs 'logic_name': 'araport11'
+        ref, s, e, strand = g.chrom, g.start, g.end, g.strand
+        name = g.name # g.attrs 'gene_id' 'gene_name'==g.name
+        feature = g.attrs["gene_biotype"]
+        args.append((feature, name, ref, s, e, strand))
+        refs.add(ref)
+    # add chrs without any genes as additional genes (ie sequin, CC etc)
+    with pysam.AlignmentFile(fnames[0]) as sam:
+        args += [("ext", r, r, 0, l, "+")
+                 for r, l in zip(sam.references, sam.lengths) if r not in refs]
+    # open SAM files
+    p = Pool(min(threads, len(args)), initializer=_init_args,
+             initargs=(fnames, mapq, firststrand, extend))
 
     # prepare tsv file
     with gzip.open(outfn, 'wt') if outfn.endswith('gz') else open(outfn, 'wt') as out:
         tsv = csv.writer(out, delimiter='\t')
-        header = ["chrom", "start", "end", "gene_name", "alt_site_no", "strand", "feature", "peak_center"]
+        header = ["chrom", "start", "end", "name", "usage", "strand", "peak_center"]
         header += ["%s freq"%s for s in samples] + ["%s counts"%s for s in samples]
         tsv.writerow(header)
         j = k = 0
-        for i, g in enumerate(genes, 1):
-            # g.attrs 'logic_name': 'araport11'
-            feature, name, ref, s, e, strand = g[2], g.name, g.chrom, g.start, g.end, g.strand
-            if name.startswith('gene'): name = name[5:]
+        for i, counts in enumerate(p.imap(worker, args), 1):
+            feature, name, ref, s, e, strand = args[i-1]
             if not i%10: logger(f"{i:,} {ref} {name} so far: {k:,} pA sites from {j:,} genes    \r")
             # get read ends
-            counts = get_counts(sams, ref, s, e, strand, mapq, firststrand, extend)
             if counts.sum() < min_count: continue
             # get alternative pA sites
             centers, se = get_peaks(counts.sum(axis=0), min_count=min_count)
@@ -95,10 +123,68 @@ def get_pA_sites(outfn, gff, fnames, samples=[], min_count=25, mapq=10,
             for ii, (center, (ps, pe)) in enumerate(zip(centers[sel], se[sel]), 1):
                 c = counts[:, ps:pe].sum(axis=1).flatten()
                 f = np.round(c/peak_counts.sum(axis=0), 3)
-                tsv.writerow((ref, s+ps, s+pe, name, ii, strand, feature, s+center, *f, *c))
+                usage = np.round(np.nanmean(c/peak_counts.sum(axis=0)), 3)
+                _name = f"{name}|{ii}|{feature}"
+                tsv.writerow((ref, s+ps, s+pe, _name, usage, strand, s+center, *f, *c))
             k += ii
             #if i>100: break
     logger("Results for %s alternative pA sites from %s genes reported to %s\n"%(k, j, outfn))
+    # close pool
+    p.close()
+    p.join()
+
+def filter_predictions(fn, logger=sys.stderr.write):
+    """Keep only one prediction for pA sites shared by multiple genes by:
+    - skip intronic (not implemented)
+    - and assign to the gene with fewer pA sites (or shorter if the same number of pA sites)
+
+    TBD:
+    - work with overlaps (currently only start position
+    - report shorter if two genes have the same amount of pA sites
+    """
+    def report_lines(out, outbed, pos2data, gene2count, gene2len={}):
+        if not pos2data: return
+        for lines in pos2data.values():
+            # sort by gene with lower gene2count
+            lines = sorted(lines, key=lambda x: gene2count[x[0]])
+            # report only 1 line for overlap
+            line = lines[0][1]
+            out.write(line)
+            # write bed
+            if line.startswith('chrom\tstart'): continue
+            ldata = line[:-1].split('\t')
+            usage, strand, center = ldata[4:7]
+            usage, center = float(usage), int(center)
+            rgb = ",".join(map(str, np.round(usage*np.array((255 if strand=="-" else 0, 255 if strand=="+" else 0, 0)), 0).astype('int')))
+            outbed.write("\t".join(ldata[:6]) + f"\t{center}\t{center+1}\t{rgb}\n")
+
+    if fn.endswith(".gz"):
+        out = gzip.open(fn[:-7]+".flt.tsv.gz", "wt")
+        handle = gzip.open(fn, "rt")
+    else:
+        out = open(fn[:-4]+".flt.tsv", "wt")
+        handle = open(fn, "rt")
+    outbed = open(out.name+".bed", "wt")
+    if logger: logger(f"Saving filtered predictions to: {out.name}\n")
+    pchrom = ""
+    pos2data = {} # this can be improved using array with pointer to line list
+    gene2count = {}
+    for l in handle:
+        ldata = l[:-1].split('\t')
+        chrom, s, e, name, score, strand = ldata[:6]
+        gene = name.split("|")[0]
+        if chrom!=pchrom:
+            report_lines(out, outbed, pos2data, gene2count)
+            pchrom = chrom
+            pos2data = {}
+            gene2count = {}
+        k = f"{s}{strand}"
+        if k in pos2data: pos2data[k].append((gene, l))
+        else: pos2data[k] = [(gene, l)]
+        if gene not in gene2count: gene2count[gene] = 1
+        else: gene2count[gene] += 1
+    report_lines(out, outbed, pos2data, gene2count)
+    out.close(); outbed.close(); handle.close()
 
 def main():
     import argparse
@@ -108,8 +194,8 @@ def main():
   
     parser.add_argument('--version', action='version', version='1.0a')   
     parser.add_argument("-v", "--verbose", action="store_true", help="verbose")    
-    parser.add_argument("-a", "--gff", required=1,
-                        help="gene annotation in gtf/gff format")
+    parser.add_argument("-a", "--gtf", required=1,
+                        help="gene annotation in gtf format")
     parser.add_argument("-b", "--bam", nargs="+",
                         help="input BAM files")
     parser.add_argument("-o", "--out", default="pA_sites.tsv.gz",
@@ -126,13 +212,19 @@ def main():
                         help="extend gene by [%(default)s bases]")
     parser.add_argument("-f", "--min_frac", default=0.05,  
                         help="report pA sites with at least [%(default)s] reads of max pA site for given gene")
+    parser.add_argument("-t", "--threads", default=6, type=int, 
+                        help="no. of threads to use [%(default)s]")
     
     o = parser.parse_args()
     if o.verbose: 
         sys.stderr.write("Options: %s\n"%str(o))
 
-    get_pA_sites(o.out, o.gff, o.bam, o.samples, o.minDepth, o.mapq,
-                 o.firststrand, o.extend, o.min_frac, o.verbose)
+    # get pA sites for all genes
+    get_pA_sites(o.out, o.gtf, o.bam, o.samples, o.minDepth, o.mapq,
+                 o.firststrand, o.extend, o.min_frac, o.threads, o.verbose)
+    
+    # pA sites with multi-genes: skip intronic and assign to the gene with fewer pA sites
+    filter_predictions(o.out)
   
 if __name__=='__main__': 
     t0 = datetime.now()
