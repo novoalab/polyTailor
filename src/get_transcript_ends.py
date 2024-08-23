@@ -6,7 +6,7 @@ epilog="""Author: l.p.pryszcz+git@gmail.com
 Barcelona/Mizerów, 9/08/2024
 """
 
-import csv, gzip, os, sys
+import csv, gzip, os, sys, traceback
 import matplotlib.pyplot as plt, numpy as np, pysam, seaborn as sns 
 from datetime import datetime
 from pybedtools import BedTool
@@ -39,17 +39,20 @@ def get_peaks(counts, prominence=5, dist=10, min_count=25):
 def get_counts(sams, ref, s, e, strand, mapq=10, firststrand=False, extend=0):
     """Return counts of read ends"""
     counts = np.zeros((len(sams), e-s+extend), dtype="int")
-    for fi, sam in enumerate(sams): 
-        for a in sam.fetch(ref, s, e): 
-            if a.mapq<mapq or a.is_secondary or a.is_supplementary: continue
-            # get transcript strand (cDNA is antisense, DRS is sense)
-            is_reverse = not a.is_reverse if firststrand else a.is_reverse
-            if strand=="+" and is_reverse or strand=="-" and not is_reverse: continue
-            # for reverse algs store the beginning of the alignment
-            p = a.pos-s+extend if is_reverse else a.aend-s
-            # skip if end outside of gene body
-            if p<0 or p>=counts.shape[1]: continue
-            counts[fi, p] += 1
+    for fi, sam in enumerate(sams):
+        try:
+            for a in sam.fetch(ref, s, e): 
+                if a.mapq<mapq or a.is_secondary or a.is_supplementary: continue
+                # get transcript strand (cDNA is antisense, DRS is sense)
+                is_reverse = not a.is_reverse if firststrand else a.is_reverse
+                if strand=="+" and is_reverse or strand=="-" and not is_reverse: continue
+                # for reverse algs store the beginning of the alignment
+                p = a.pos-s+extend if is_reverse else a.aend-s
+                # skip if end outside of gene body
+                if p<0 or p>=counts.shape[1]: continue
+                counts[fi, p] += 1
+        except Exception as e:
+            sys.stderr.write("\n"+traceback.format_exc()+"\n")
     return counts
 
 def _init_args(*args):
@@ -75,6 +78,7 @@ def get_pA_sites(outfn, gtf, fnames, samples=[], min_count=25, mapq=10,
     if not samples: samples = [os.path.basename(fn)[:-4] for fn in fnames]
     else: assert len(samples)==len(fnames), "Number of samples has to match number of BAM files!"
     
+    logger(f"Loading genes...\n")
     # get gene locations
     ann = BedTool(gtf)
     genes = ann.filter(lambda x: x[2].endswith("gene"))
@@ -83,14 +87,20 @@ def get_pA_sites(outfn, gtf, fnames, samples=[], min_count=25, mapq=10,
     for i, g in enumerate(genes, 1):
         # g.attrs 'logic_name': 'araport11'
         ref, s, e, strand = g.chrom, g.start, g.end, g.strand
+        feature = None
+        for f in ("gene_biotype", "gene_type"):
+            if f in g.attrs:
+                feature = g.attrs[f]
+                break
+        if not feature: continue
         name = g.name # g.attrs 'gene_id' 'gene_name'==g.name
-        feature = g.attrs["gene_biotype"]
         args.append((feature, name, ref, s, e, strand))
         refs.add(ref)
     # add chrs without any genes as additional genes (ie sequin, CC etc)
     with pysam.AlignmentFile(fnames[0]) as sam:
         args += [("ext", r, r, 0, l, "+")
                  for r, l in zip(sam.references, sam.lengths) if r not in refs]
+    logger(f"Processing {len(args):,} genes...\n")
     # open SAM files
     p = Pool(min(threads, len(args)), initializer=_init_args,
              initargs=(fnames, mapq, firststrand, extend))

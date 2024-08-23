@@ -11,137 +11,146 @@ pip install matplotlib numpy parasail pybedtools pysam pandas scipy seaborn
 
 ## How to run?
 
-0. Basecall you reads saving `mv` table in BAM file 
-using [dorado](https://github.com/nanoporetech/dorado)
+1. Basecall (and demultiplex) your reads saving the `mv` table in BAM file 
+using [dorado](https://github.com/nanoporetech/dorado).
 ```bash
-dorado basecaller -x cuda:all --emit-moves -r MODEL pod5_dir > bam_with_move_table.bam
+dorado basecaller -x cuda:all --emit-moves -r MODEL [--kit-name BARCODING_KIT] pod5_dir > reads.bam
 ```
 For the most accurate poly-T composition calling we recommend using the latest `sup` 
-[model](https://github.com/nanoporetech/dorado?tab=readme-ov-file#dna-models). 
+[model](https://github.com/nanoporetech/dorado?tab=readme-ov-file#dna-models).
+If barcoding `--kit-name` is provided, barcode will be reported in `barcode` column. 
 
-1. Estimate poly-T tail length and composition
-You can use all reads
+
+2. Align the reads to the genome passing `dorado` tags to the resulting BAM file
+
 ```bash
-src/get_pT.py -b bam_with_move_table.bam > pT.tsv
+samtools fastq -F2304 -T mv,ns,pt,ts,BC reads.bam|minimap2 -y -ax splice:hq genome.fa -|samtools sort --write-index -o algs.bam
 ```
 
-Since N3Pseq captures all transcripts (also fragmented ones),
-you may want to subset the analysis only to reads that end at
-one of the annotated poly-A sites.
+3. Annotate alternative transcript ends
 
-DETAILS FROM OZ HERE!
-
-Once you have a BED file, you can extract read_id, gene_name and feature_type using:
 ```bash
-cut -f4,16-17 complete_reads.bed > read.ids
-```
-and use it with `get_pT.py` as follows:
-```bash
-src/get_pT.py -b bam_with_move_table.bam -i read.ids > pT.flt.tsv
+src/get_transcript_ends.py --firststrand -q0 -o transcript_ends.tsv.gz -a genome.gtf -b algs.bam [algs2.bam ... algsN.bam]
 ```
 
+4. Associate reads to transcripts (optionally)
+
+```bash
+isoquant.py --complete_genedb --data_type nanopore -o isoquant -r genome.fa -g genome.gtf --stranded reverse --bam algs.bam
+```
+
+5. Estimate poly-T tail length and composition combining all above info
+
+```bash
+src/get_pT.py -o pT.tsv -b algs.bam [-e transcript_ends.tsv.gz -i <(zgrep -v '^#' isoquant/OUT/OUT.read_assignments.tsv.gz | cut -f1,4,6,9)]
+```
 
 This will produce a TAB-delimited file with following columns:
 1. read_id
-2. pt_len - estimated poly-T length. 
-3. per_base - helicase speed estimated from mv table (mean number of chunks per base)
-4. pt_start - poly-T start in read sequence
-5. pt_end - poly-T end in read sequence
-6. before_pt - sequence before detected poly-T (terminal bases of poly-A)
-7. pt_seq - poly-T sequence composition
-8. score - N3Pseq primer alignment score
-9. identity - N3Pseq primer identity
-10. cigar - N3Pseq primer alignment cigar
-11. comments - additional fields passed from `-i / --readids` file
+2. barcode - detected barcode (`unknown` if no barcode detected)
+3. mapq - mapping quality
+4. filter - `OK` means that following filters were passed
+   - read has 5' clipped part corresponding to: adapter, N3PS primer and pT (otherwise `no_clip`)
+   - N3PS primer was detected in the 5' clipped part (otherwise `no_primer`)
+   - the N3PS primer aligned end-to-end (otherwise `not_complete`)
+   - pT sequence was detected between primer and aligned transcript (otherwise `no_pT`)
+   - the pT is immediately following primer (otherwise not_continuous)
+5. pt_len - estimated poly-T length. 
+6. per_base - helicase speed estimated from mv table (mean number of chunks per base)
+7. pt_start - poly-T start in read sequence
+8. before_pt - sequence before detected poly-T (terminal bases of poly-A)
+9. pt_seq - poly-T sequence composition
+10. transcript_end - 
+11. distance - distance from the transcript end
+12. comments - additional fields passed from `-i / --readids` file
 
 Note, there may be multiple comments columns,
-depending on provided `-i / --readids` file. 
+depending on provided `-i / --readids` file.
+
+For example, for `isoquant` example above, you'll see:
+12. isoform_id
+13. assignment_type
+14. additional_info
 
 
 ### Example outputs
 
-1. Old N3Pseq oligo `CAGCACCT CTTCCGATCACTTGCCTGTCGCTCTATCTTC TTT`
+1. Old N3Pseq oligo `CAGCACCT CTTCCGATCACTTGCCTGTCGCTCTATCTTC`
 
 - 30 bases long poly-A tails
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-ebd3774d-8d97-4934-8b68-450a07ff93e5    34.3    2.2     105     115     TCGCTCTATC      TTCTTTTTTT      74      0.952   11=1I1=1X28=
-95d75aca-4dbc-47cb-adda-77bc780c6b16    28.1    2.4     101     111     TCGCTCTATC      TTCTTTTTTT      84      1.0     42=
-2f559f2b-51fc-436b-b9c9-cddb996a6a03    34.4    1.9     94      100     TCGCTCTATC      TTCTTT  79      0.976   19=1I22=
-fc30b14f-e814-4ea5-bcc1-c3d0e40868be    34.5    1.8     100     130     TCGCTCTATC      TTCTTTTTTTTTTTTTTTTTTTTTTTTTTT  84      1.0     42=
-5104d2f0-9ef3-401b-a9ef-7ba2bc37cb8c    35.7    1.6     112     118     GCACTCTATC      TTCTTT  30      0.727   9S3=1D1=1X2=1X1=1D3=1I3=1X1=2D1=1X13=
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+66726005-d641-4c06-8b00-4621f94ec03f	unknown	60	OK	27.3	1.5	102	CTCTATCTTC	TTTTTTTTTTTTTTTTTTT
+89456d91-eb3a-46ad-be21-63814a7cfe9b	unknown	9	OK	33.6	3.2	100	CTCTATCTTC	TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+ddfd08ad-c316-4197-acbb-6f5a00468397	unknown	60	OK	25.8	2.2	104	CTCTATCTTC	TTTTTTTTTTTTTTTTTTTTTTTTT
+c7b689ae-9dd4-482b-b2b8-1e4edbc46a55	unknown	60	OK	23.3	2.2	109	CTCTATCTTC	TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+3e11c499-2a54-4373-a360-65fe0a2d0a9b	unknown	60	OK	37.7	1.8	100	CTCTATCTTC	TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 ```
 
 - 30 bases long poly-A tails with internal G bases
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-c561064b-8ee3-44c9-8454-6b5810dd1f78    15.3    2.8     98      132     TCGCTCTATC      TTCTTTTTTCTTTTCTTTTCTTTTTTTTTTTTTT      84      1.0     42=
-c8dac82d-84ab-4e20-8009-2167b7e3e663    28.3    1.8     100     126     TCGCTCTATC      TTCTTTTCTTTTCTTTTCTTTTTTTT      84      1.0     42=
-e467dfa0-b598-483f-a8ae-cfd2d9004c0f    28.9    2.1     98      126     TCGCTCTATC      TTCTTTTCTTTTCTTTCTTTTTTTTTTT    84      1.0     42=
-447d09fa-b8d5-475b-ba19-229ce1f2e766    24.9    2.4     91      119     TCGCTCTATC      TTCTTTTCTTTTCTTTTCTTTTTTTTTT    84      1.0     42=
-3a8e11e7-238c-434f-bfb3-a37e6858ab4b    44.8    1.3     104     132     TCGCTCTATC      TTCTTTTCTTTTCTTTTCTTTTTTTTTT    84      1.0     42=
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+00dbf8ad-5efe-41ec-817c-d67ea271e454    unknown 51      OK      12.8    5.0     106     CTCTATCTTC      TTTTCTTTTCTTTTCTTTTTTTTTTTT
+6f44ebc0-5128-40c6-b72d-599367f6ab1f    unknown 60      OK      21.5    2.3     104     CTCTATCTTC      TTTTCTTTTCTTTTCTTTTTTTTTT
+fc395607-5f52-415d-92f8-62bf6f22628a    unknown 54      OK      22.0    2.4     109     CTCTATCTTC      TTTTCTTTTCTTTTCTTTTTTT
+468f9a11-4941-4644-bfa2-dd788c3184ff    unknown 3       OK      25.5    2.2     108     CTCTATCTTC      TTTTCTTTTCTTTTCTTTTTTT
+b1c908b0-0ad8-41fd-9e65-83182e09af76    unknown 60      OK      31.6    2.2     100     CTCTATCTTC      TTTTCTTTTCTTTTCTTTTTTTTTTTT
 ```
 
 - 30 bases long poly-A tails with a single terminal U base `-U`
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-4fc31a31-aaf9-481b-a9e2-cb8f04622485    35.0    2.4     108     129     CTATCTTTAA      TTTTTTTTTTTTTTTTTTTTT   71      0.974   19=1I18=4S
-ebbac215-516c-480a-8bb4-833912240e2e    50.7    2.2     94      103     TCTATCTTCA      TTTTTTGTT       81      0.976   39=1D3=
-13732215-ffbb-40e1-89a3-65e422e0d183    22.5    2.2     103     127     TCTATCTTCA      TTTTTTTTTTTTTTTTTTTTTTTT        81      0.976   39=1D3=
-e41cc3d2-8855-4d0d-85a2-849fe9d193ff    17.3    2.7     104     123     GTATTTTTCA      TTTTTTTTTTTTTTTTTTT     46      0.786   22=2I1=1D2=2X2=1X2=1D1=1X3=1D3=
-1142c841-8716-4956-90e1-372a3fc1a675    22.9    2.1     107     116     TCTATCTTCA      TTTTTTTTT       68      0.905   8=1D3=2X26=1D3=
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+9c2dc8f5-2520-4216-bb6a-7b63a9811a97	unknown	60	not_continuous	26.6	2.2	105	TCTATCTTCA	TTTTTT
+2c10382e-8cca-4be5-842c-582e6c90ec1d	unknown	60	not_continuous	20.3	2.0	104	TATATCTTCA	TTTTTTT
+1c1d96c5-d64d-48c8-88b2-a9efa10859ff	unknown	60	not_continuous	32.3	1.8	105	TCTATCTTCA	TTTTTTTTTTTTTTTTTTTTTTT
+197b468e-20e5-4b0b-9526-c72e32911256	unknown	60	not_continuous	33.3	2.1	100	TCTATCTTCA	TTTTTTTTTTTTTTTT
+798987a3-5b67-4dba-b737-be9ff84b753b	unknown	60	not_continuous	25.8	2.3	104	TCTATCTTCA	TTTTTTTTTTT
 ```
 
 - 30 bases long poly-A tails with 3 terminal U bases `-UUU`
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-1ba6eb7c-2319-4c79-aa05-c967a13eeeb1    25.0    1.9     106     126     TATCTTCAAA      TTTTTTTTTTTTTTTTTTTT    78      1.0     39=3S
-952c5aec-da57-41c9-9ab9-fd2c0c0f8e2d    29.3    1.7     108     133     TCTATTTAAA      TTTTTTTTTTTTTTTTTTTTTTTTT       71      0.974   35=1I2=4S
-6fce380f-d07f-43c9-bbd4-4388b2ebbefb    20.6    1.8     106     127     ATCTCTCAAA      TTTTTTTTTTTTTTTTTTTTT   66      0.925   29=2I5=1I3=2S
-917cf7cc-fcbc-41d7-a382-1a4e336b1940    22.1    2.1     106     127     TATCTTCAAA      TTTTTTTTTTTTTTTTTTTTT   78      1.0     39=3S
-2d2d3344-00f8-4245-9015-cbcc80eb3d2d    25.8    1.9     115     139     ATCTTAGAAA      TTTTTTTTTTTTTTTTTTTTTTTT        76      1.0     38=4S
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+89894967-58ff-415d-b007-44119d12eada	unknown	3	not_continuous	10.5	3.3	107	ATCTTAGAAA	TTTTTTTTTTTTTTTTTTTTT
+67430d4b-7ec1-4a4f-a92f-bd103d39d32d	unknown	60	not_continuous	18.9	2.4	108	TATCTTCAAA	TTTTT
+ec8cf495-5c2c-4b87-b507-a887c533a8e8	unknown	34	not_continuous	14.6	2.9	105	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTT
+848fb138-282c-4baa-8932-f325d6778184	unknown	60	not_continuous	24.9	1.9	105	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+d277c17f-d690-494f-b858-bed07c959c89	unknown	60	not_continuous	17.6	2.6	111	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTTTT
 ```
 
 - 30 bases long poly-A tails with 5 terminal U bases `-UUUUU`
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-0c6a6d34-d8fd-4f73-8f89-230d94e03992    31.6    1.9     104     124     TCTTCAAAAA      TTTTTTTTTTTTTTTTTTTT    57      0.872   9=1I17=1X1=1D1=1D1=1X7=3S
-b532612e-8e89-4d3b-a0c3-7841d585bb1b    33.2    2.0     107     130     TCTTCAAAAA      TTTTTTTTTTTTTTTTTTTTTTT 75      0.974   8=1D31=3S
-a8d4c6d5-91d8-4bd2-b875-93d0ea42415e    32.0    2.3     109     120     TCTTCAAAAA      TTTTTTTTTTT     78      1.0     39=3S
-8e7f20dd-7b6b-4b6c-8178-3963557a60fd    23.5    2.1     119     133     TCTTCAAAAA      TTTTTTTTTTTTTT  78      1.0     39=3S
-f62e13f2-0371-4c1e-9b46-3c9e04cebc9c    22.1    1.9     102     114     TCTTCAAAAA      TTTTTTTTTTTT    78      1.0     39=3S
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+20b1a13a-6eab-4d0b-9d10-0d71c58a7d38	unknown	60	not_continuous	35.9	1.9	111	TCTTCAAAAA	TTTTTTTTTTTTTTTTTTTTTTTTTT
+1e4c7b8f-be74-4f1c-8dc1-50c0c6cd4c60	unknown	60	not_continuous	22.1	2.1	109	ATCTTCAAAA	TTTTTTTTTTTTTT
+fcd0dfe8-3fac-4e62-ade8-c064b46e5f87	unknown	60	not_continuous	16.9	2.3	111	TCTTCAAAAA	TTTTTTTTTTTTTTTTT
+bec9bb54-aa7a-4492-ba9c-00f0f3f729fe	unknown	60	not_continuous	24.1	2.5	113	TCTTCAAAAA	TTTTTTTTTTTTTTT
+8e2e89d7-1b79-46e1-a585-e02d2ab30a2e	unknown	60	not_continuous	12.3	3.6	106	TCTTCAAAAA	TTTTTTTTTTTTTTTTTTTTTT
 ```
 
 - 30 bases long poly-A tails with 5 terminal C bases `-CCCCC`
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-3ea026df-19e1-4102-9a6d-edb01697fc87    22.7    1.6     105     116     TCTTCGGGGG      TTTTTTTTTTT     78      1.0     39=3S
-e6294bc0-b45b-459e-bf14-25c9eac0f6bf    24.1    1.9     110     120     TCTTCGGGGG      TTTTTTTTTT      73      0.974   21=1I17=3S
-3bb32870-591a-419f-a2f8-fea85f7117fc    30.3    2.0     104     130     TCTTCGGGGG      TTTTTTTTTTTTTTTTTTTTTTTTTT      78      1.0     39=3S
-13a240f9-71f8-4178-a4b0-d53a2dc8b36b    27.7    2.1     115     128     TCTTCGGGGG      TTTTCTTTTTTTT   55      0.872   22=1D3=1X1=1I1X1=1X8=3S
-0da31119-fbef-4009-98b5-9303f6673b73    21.5    1.9     109     133     TCTTCGGGGG      TTTTTTTTTTTTTTTTTTTTTTTT        78      1.0     39=3S
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+f0f7fe2b-3f7c-4474-bad9-0721557a35d3	unknown	60	not_continuous	22.0	1.9	110	TCTTCGGGGG	TTTTTTTTTT
+2ffc2b3c-59d7-45db-b994-6c3140a1570c	unknown	54	not_continuous	24.0	1.7	111	TGTTCGGGGG	TTTTTTTTTTTTTTTTTTTTTT
+904389b4-3830-4147-ac78-1a5f030b6690	unknown	60	not_continuous	19.1	2.2	108	TCTTCGGGGG	TTTTTTTTTTTTTTTTTTT
+4196161c-959d-432a-bfca-d9d14f3acc90	unknown	60	not_continuous	15.6	2.5	110	TCTTCGGGGG	TTTTTTTTTTTTTTTTTTTTT
+7d0d7548-a714-4efa-bc02-958db3740d8e	unknown	60	not_continuous	18.1	2.4	108	TCTTCGGGGG	TTTTTTTTTTTTTTTTTTTTT
 ```
 
 - 30 bases long poly-A tails with 5 terminal G bases `-GGGGG`
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-06780cfc-a5b2-4401-8835-84fa5a355378    22.9    2.1     110     118     ATCTTCCCCC      TTTTTTTT        78      1.0     39=3S
-6828e8ac-b3c2-42a3-b6a7-205a3d62616c    31.1    1.9     107     115     TCTTCCCCCC      TTTTTTTT        56      0.872   11=2I12=3I11=3S
-7eb56aa6-1467-4e0c-9539-767d76112d3d    23.8    2.1     111     128     CTCCCCCCCC      TTTTTTTTTTTTTTTTT       58      0.892   13=1X3=1D1=1I13=1D5=5S
-cb70c6c7-e9f8-45a1-ad55-a3a3937a4a09    31.3    1.7     99      103     TCGCTCTACC      TTTT    72      0.951   34=1X3=1I2=1S
-d8e413ad-1587-4be6-8b3e-8827a9ff3a76    33.1    1.8     100     109     TCTTCCCCCC      TTTTTTTTT       75      0.974   15=1D24=3S
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq
+d64295f5-4e5d-4b5c-b24d-29b2606318b4	unknown	35	not_continuous	21.1	1.6	122	TGCCCCCCCC	TTTTTTT
+af7fa273-9fd3-4ad9-a1f9-9691b49e19be	unknown	60	not_continuous	22.9	2.1	110	TCTTCCCCCC	TTTTTTT
+073bab93-2b78-4c7d-b1ff-34f3b67a394f	unknown	60	not_continuous	5.6	3.7	105	TCTTCCCCCC	TTTTTTTT
+a1eea540-b878-4bdd-9251-9ac65f475200	unknown	60	not_continuous	19.0	2.6	107	CTTCCCCCCC	TTTTTTT
+692be019-144c-486a-b329-81c0a44f93d8	unknown	60	not_continuous	27.5	2.5	101	ATCTTCCCCC	TTTTTTTTT
 ```
 
-2. New N3Pseq oligo `CAGCACCT ACTTGCCTGTCGCTCTATCTGCAGAGCAGAG TTT`
+2. New N3Pseq oligo `CAGCACCT ACTTGCCTGTCGCTCTATCTGCAGAGCAGAG`
 
 - yeast total RNA
 ```bash
-read_id pt_length       per_base        pt_start        pt_end  before_pt       pt_seq  score   identity        cigar   comments
-1a822816-2cff-4bfe-b622-be142ada2eb8    -10.0   2.2     -1      0       TTGCCGACTT              73      0.974   27=1I11=3S      25s     rRNA
-ece6abde-9f6d-4680-95a8-82a64603d368    1.0     1.6     124     126     GTAATGATCC      TT      67      0.9     13=1D3=1X2=2D21=2S      18s     rRNA
-29964a2e-80e4-4800-bfc5-0de8d724ae4d    20.1    1.9     98      115     CAGAGCAGAG      TTTTTTTTTTTTTTTTT       84      1.0     42=     YDR002W protein_coding
-03d98db8-d6c9-459c-92c5-eeb0bec5f7fe    -10.0   2.1     -1      0       CTGCTTCGGT              78      1.0     39=3S   25s     rRNA
-a89995a7-4844-48b9-a6e2-84b700745580    -2.4    2.4     106     108     AGCAGAGTAA      TT      75      0.975   11=1X28=2S      SCR1    ncRNA
 ```
 
 
