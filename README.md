@@ -151,6 +151,12 @@ a1eea540-b878-4bdd-9251-9ac65f475200	unknown	60	not_continuous	19.0	2.6	107	CTTC
 
 - yeast total RNA
 ```bash
+read_id	barcode	mapq	filter	pt_length	per_base	pt_start	before_pt	pt_seq	transcript_end	distance	comment
+7d7576b3-3872-4c22-baf0-620f35f0917f	unknown	7	OK	57.8	2.1	105	CCAGAGCAAG	TTTT
+11cdb20c-1808-4a5d-a6c6-7850daafb4b8	unknown	60	OK	36.3	2.5	100	CAGAGCAGAG	TTTTTTTTTTTTTTTTTT	GDH3|1|protein_coding	17
+dc61cb45-7fa1-4c09-af85-21ce91e28879	unknown	60	OK	35.6	3.5	106	CAGAGCAGAG	TTTTTTTTTTTTTTTTTTT	GDH3|1|protein_coding	18
+19625470-110e-4315-8354-79fd7574aadd	unknown	0	no_pT	0	0.0	0	RDN25-1|2|rRNA	1	
+5517395a-bc83-471c-8f03-867b46333fcc	unknown	0	no_pT	0	0.0	0	RDN25-1|2|rRNA	1	
 ```
 
 
