@@ -6,10 +6,12 @@ You'll need Python 3.8+ and install following packaged
 using [pip](https://pip.pypa.io/):
 
 ```bash
-pip install matplotlib numpy parasail pybedtools pysam pandas scipy seaborn
+pip install matplotlib numpy parasail pybedtools pysam pandas scipy seaborn htseq
 ```
 
 ## How to run?
+
+PolyTailor can be executed as follows (steps 3-4 are optional): 
 
 1. Basecall (and demultiplex) your reads saving the `mv` table in BAM file 
 using [dorado](https://github.com/nanoporetech/dorado).
@@ -33,7 +35,8 @@ samtools fastq -F2304 -T mv,ns,pt,ts,BC reads.bam|minimap2 -y -ax splice:hq geno
 src/get_transcript_ends.py --firststrand -q0 -o transcript_ends.tsv.gz -a genome.gtf -b algs.bam [algs2.bam ... algsN.bam]
 ```
 
-4. Associate reads to transcripts (optionally)
+4. Associate reads to transcripts
+using [IsoQuant](https://github.com/ablab/IsoQuant)
 
 ```bash
 isoquant.py --complete_genedb --data_type nanopore -o isoquant -r genome.fa -g genome.gtf --stranded reverse --bam algs.bam
