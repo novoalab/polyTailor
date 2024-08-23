@@ -1,4 +1,4 @@
-# N3PS_pt
+# PolyTailor
 
 ## Installation
 
