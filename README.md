@@ -115,9 +115,10 @@ Note, there may be multiple comments columns,
 depending on provided `-i / --readids` file.
 
 For example, for `isoquant` example above, you'll see:
-12. isoform_id
-13. assignment_type
-14. additional_info
+
+12. isoform_id  
+13. assignment_type  
+14. additional_info  
 
 ## Test dataset
 
