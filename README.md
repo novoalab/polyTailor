@@ -1,9 +1,5 @@
 # polyTailor
 
-<<<<<<< HEAD
-PolyTailor can estimate poly-T length and composition
-from N3PS libraries sequenced with R9 and R10 chemistry. 
-=======
 - [Brief description](#Brief-description)
 - [Installation](#Installation)
 - [How to run?](#How-to-run?)
@@ -17,14 +13,12 @@ It predicts:
 * per-read polyA tail lengths estimates
 * per-read tail heterogeneity (i.e. non-A features)
  
-This software is meant to be used with Nano3P-seq cDNA libraries, and can work with Nano3P-seq libraries sequenced using R9 and R10 flowcells.
+This software is meant to be used with Nano3P-seq cDNA libraries,
+and can work with Nano3P-seq libraries sequenced using R9 and R10 flowcells.
 
 ## Installation
->>>>>>> 991eb0a57fdb047f37933c47638838dc31b4e31d
 
-## Dependencies
-
-You'll need
+You'll need:
 - [samtools](https://github.com/samtools/htslib/) v1.19+
 - [minimap2](https://github.com/lh3/minimap2/) v2.28+
 - [IsoQuant](https://github.com/ablab/IsoQuant) optionally 3.5+
@@ -128,7 +122,9 @@ You can find test data and example outputs in [test](/test).
 ## Citation
 
 If you find this work useful, please cite: 
-Begik O*, Pryszcz LP*, Niazi AM, Valen E, Novoa EM. Nano3P-seq: a protocol to chart the coding and non-coding transcriptome at single molecule resolution. (in preparation)
+Begik O*, Pryszcz LP*, Niazi AM, Valen E, Novoa EM.
+Nano3P-seq: a protocol to chart the coding and non-coding transcriptome at single molecule resolution.
+(in preparation)
 
 ## Issues
 
