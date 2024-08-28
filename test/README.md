@@ -22,7 +22,14 @@ so you'll perform only the last step of polyTailor.
 
 Note, DNA standards were sequenced using old N3Pseq oligo `CAGCACCT CTTCCGATCACTTGCCTGTCGCTCTATCTTC`. 
 
-First process all aligned reads with polyTailor:
+First download the data
+
+```bash
+mkdir -p test; cd test
+wget https://public-docs.crg.es/enovoa/public/lpryszcz/src/polyTailor/test/{ref,minimap2} -q --show-progress -r -c -nc -np -nH --cut-dirs=6 --reject="index.html*"
+```
+
+Then process all aligned reads with polyTailor:
 ```bash
 cd test
 for f in minimap2/DNA_standards_R10_dorado_sup/*.bam; do
@@ -135,11 +142,20 @@ We provide raw datasets for:
 If you wish to repeat the full polyTailor analysis descibed in the manuscript,
 follow these steps: 
 
-0. Download raw reads in pod5 format
+0. Download reference genome and raw reads in pod5 format
 
 ```bash
+mkdir -p test; cd test
+wget https://public-docs.crg.es/enovoa/public/lpryszcz/src/polyTailor/test/{ref,reads} -q --show-progress -r -c -nc -np -nH --cut-dirs=6 --reject="index.html*"
+```
+
+If you have previous results in `minimap2/yeast`,
+either remove or rename this directory.
 
 ```
+mv minimap2/yeast minimap2/yeast.old
+```
+
 
 1. Basecall
 
