@@ -1,7 +1,26 @@
 # polyTailor
 
+<<<<<<< HEAD
 PolyTailor can estimate poly-T length and composition
 from N3PS libraries sequenced with R9 and R10 chemistry. 
+=======
+- [Brief description](#Brief-description)
+- [Installation](#Installation)
+- [How to run?](#How-to-run?)
+- [Examples](#Examples)
+- [Citation](#Citation) 
+- [Issues](#Issues)
+
+## Brief description 
+PolyTailor is a software to study RNA tails.
+It predicts: 
+* per-read polyA tail lengths estimates
+* per-read tail heterogeneity (i.e. non-A features)
+ 
+This software is meant to be used with Nano3P-seq cDNA libraries, and can work with Nano3P-seq libraries sequenced using R9 and R10 flowcells.
+
+## Installation
+>>>>>>> 991eb0a57fdb047f37933c47638838dc31b4e31d
 
 ## Dependencies
 
@@ -42,7 +61,7 @@ dorado download --directory ~/src/dorado/models --model dna_r10.4.1_e8.2_400bps_
 
 PolyTailor can be executed as follows (steps 3-4 are optional): 
 
-1. Basecall (and demultiplex) your reads saving the `mv` table in BAM file 
+### 1. Basecall (and demultiplex) your reads saving the `mv` table in BAM file 
 using [dorado](https://github.com/nanoporetech/dorado).
 ```bash
 dorado basecaller -x cuda:all --emit-moves -r MODEL [--kit-name BARCODING_KIT] pod5_dir > reads.bam
@@ -52,26 +71,26 @@ For the most accurate poly-T composition calling we recommend using the latest `
 If barcoding `--kit-name` is provided, barcode will be reported in `barcode` column. 
 
 
-2. Align the reads to the genome passing `dorado` tags to the resulting BAM file
+### 2. Align the reads to the genome passing `dorado` tags to the resulting BAM file
 
 ```bash
 samtools fastq -F2304 -T mv,ns,pt,ts,BC reads.bam|minimap2 -y -ax splice:hq genome.fa -|samtools sort --write-index -o algs.bam
 ```
 
-3. Annotate alternative transcript ends
+### 3. Annotate alternative transcript ends
 
 ```bash
 src/get_transcript_ends.py --firststrand -q0 -o transcript_ends.tsv.gz -a genome.gtf -b algs.bam [algs2.bam ... algsN.bam]
 ```
 
-4. Associate reads to transcripts
+### 4. Associate reads to transcripts
 using [IsoQuant](https://github.com/ablab/IsoQuant)
 
 ```bash
 isoquant.py --complete_genedb --data_type nanopore -o isoquant -r genome.fa -g genome.gtf --stranded reverse --bam algs.bam
 ```
 
-5. Estimate poly-T tail length and composition combining all above info
+### 5. Estimate poly-T tail length and composition combining all above info
 
 ```bash
 src/get_pT.py -o pT.tsv -b algs.bam [-e transcript_ends.tsv.gz -i <(zgrep -v '^#' isoquant/OUT/OUT.read_assignments.tsv.gz | cut -f1,4,6,9)]
@@ -106,6 +125,12 @@ For example, for `isoquant` example above, you'll see:
 
 You can find test data and example outputs in [test](/test). 
 
-
 ## Citation
 
+If you find this work useful, please cite: 
+Begik O*, Pryszcz LP*, Niazi AM, Valen E, Novoa EM. Nano3P-seq: a protocol to chart the coding and non-coding transcriptome at single molecule resolution. (in preparation)
+
+## Issues
+
+If you have an issue running this code, please open a new Github issue.
+Please take a look at previous issues, even if closed. Thanks! 
