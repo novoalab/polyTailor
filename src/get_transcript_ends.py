@@ -218,7 +218,7 @@ def main():
                         help="sample names [infer from BAM names]")
     parser.add_argument("--firststrand", action='store_true', 
                         help="antisense strand sequencing ie cDNA [sense strand sequencing ie DRS]")
-    parser.add_argument("-e", "--extend", default=1000,  
+    parser.add_argument("-e", "--extend", default=1000, type=int,  
                         help="extend gene by [%(default)s bases]")
     parser.add_argument("-f", "--min_frac", default=0.05,  
                         help="report pA sites with at least [%(default)s] reads of max pA site for given gene")

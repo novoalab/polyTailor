@@ -12,6 +12,7 @@ epilog="""Author: l.p.pryszcz+git@gmail.com
 Torredembarra/Barcelona/Mizerów, 9/08/2024
 """
 
+import gzip
 import os
 import sys
 import pysam
@@ -125,7 +126,12 @@ def alg2pt(a, primer, profile, open_penalty, extend_penalty,
     return info, pt_len, per_base, s, seq[s-10:s], seq[s:e]
 
 def get_pT(out, bam, readidsfn, endsfn, primer, scoring=(2, 3, 3, 2), logger=sys.stderr):
-
+    """
+    """
+    # create gz handle
+    if out.name.endswith(".gz"):
+        out.close()
+        out = gzip.open(out.name, "wt")
     # init primer aligner
     match_score, mismatch_penalty, open_penalty, extend_penalty = scoring
     matrix = parasail.matrix_create("ACGT", match_score, -mismatch_penalty)
@@ -136,10 +142,12 @@ def get_pT(out, bam, readidsfn, endsfn, primer, scoring=(2, 3, 3, 2), logger=sys
     ends = {}
     if readidsfn:
         if logger: logger.write(f"Loading read ids...\n")
-        for l in open(readidsfn, "rt"):
+        f = gzip.open(readidsfn, "rt") if readidsfn.endswith('.gz') else open(readidsfn, "rt")
+        for l in f:
             if not l[:-1]: continue
             ldata = l[:-1].split("\t")
             readids[ldata[0]] = "\t".join(ldata[1:])
+        f.close()
         if logger: logger.write(f" {len(readids):,} entries loaded.\n")
     if endsfn:
         ends = HTSeq.GenomicArrayOfSets("auto", stranded=True)
