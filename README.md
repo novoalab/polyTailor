@@ -4,6 +4,7 @@
 - [Installation](#Installation)
 - [How to run?](#How-to-run?)
 - [Examples](#Examples)
+- [Test dataset](#Test-dataset)
 - [Citation](#Citation) 
 - [Issues](#Issues)
 
@@ -21,7 +22,7 @@ and can work with Nano3P-seq libraries sequenced using R9 and R10 flowcells.
 You'll need:
 - [samtools](https://github.com/samtools/htslib/) v1.19+
 - [minimap2](https://github.com/lh3/minimap2/) v2.28+
-- [IsoQuant](https://github.com/ablab/IsoQuant) optionally 3.5+
+- [IsoQuant](https://github.com/ablab/IsoQuant) 3.5+
 - Python 3.8+ with following packaged installed: matplotlib numpy parasail pybedtools pysam pandas scipy seaborn htseq
 
 All above can be installed using conda and pip: 
@@ -55,11 +56,11 @@ dorado download --directory ~/src/dorado/models --model dna_r10.4.1_e8.2_400bps_
 
 PolyTailor can be executed as follows (steps 3-4 are optional): 
 
-### 1. Basecall (and demultiplex) your reads saving the `mv` table in BAM file 
-using [dorado](https://github.com/nanoporetech/dorado).
+### 1. Basecall (and demultiplex) your reads saving the `mv` table in BAM file
 ```bash
 dorado basecaller -x cuda:all --emit-moves -r MODEL [--kit-name BARCODING_KIT] pod5_dir > reads.bam
 ```
+
 For the most accurate poly-T composition calling we recommend using the latest `sup` 
 [model](https://github.com/nanoporetech/dorado?tab=readme-ov-file#dna-models).
 If barcoding `--kit-name` is provided, barcode will be reported in `barcode` column. 
@@ -68,7 +69,7 @@ If barcoding `--kit-name` is provided, barcode will be reported in `barcode` col
 ### 2. Align the reads to the genome passing `dorado` tags to the resulting BAM file
 
 ```bash
-samtools fastq -F2304 -T mv,ns,pt,ts,BC reads.bam|minimap2 -y -ax splice:hq genome.fa -|samtools sort --write-index -o algs.bam
+samtools fastq -F2304 -T mv,ts,BC reads.bam|minimap2 -y -ax splice:hq genome.fa -|samtools sort --write-index -o algs.bam
 ```
 
 ### 3. Annotate alternative transcript ends
@@ -78,16 +79,17 @@ src/get_transcript_ends.py --firststrand -q0 -o transcript_ends.tsv.gz -a genome
 ```
 
 ### 4. Associate reads to transcripts
-using [IsoQuant](https://github.com/ablab/IsoQuant)
 
 ```bash
 isoquant.py --complete_genedb --data_type nanopore -o isoquant -r genome.fa -g genome.gtf --stranded reverse --bam algs.bam
 ```
 
-### 5. Estimate poly-T tail length and composition combining all above info
+### 5. Estimate poly-T tail length and composition
 
 ```bash
-src/get_pT.py -o pT.tsv -b algs.bam [-e transcript_ends.tsv.gz -i <(zgrep -v '^#' isoquant/OUT/OUT.read_assignments.tsv.gz | cut -f1,4,6,9)]
+src/get_pT.py -o pT.tsv.gz -b algs.bam \
+  -e transcript_ends.flt.tsv.gz.bed
+  -i <(zgrep -v '^#' isoquant/OUT/OUT.read_assignments.tsv.gz | cut -f1,4,6,9)
 ```
 
 This will produce a TAB-delimited file with following columns:
@@ -116,6 +118,8 @@ For example, for `isoquant` example above, you'll see:
 12. isoform_id
 13. assignment_type
 14. additional_info
+
+## Test dataset
 
 You can find test data and example outputs in [test](/test). 
 
