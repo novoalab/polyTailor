@@ -22,19 +22,26 @@ so you'll perform only the last step of polyTailor.
 
 Note, DNA standards were sequenced using old N3Pseq oligo `CAGCACCT CTTCCGATCACTTGCCTGTCGCTCTATCTTC`. 
 
+We prefiltered only the reads for which
+the alignment starts in expected reference posittion (+/-1).
+For example, for 0A, 60A and 120A,
+the alignments should start at position
+1, 61 and 121 of the reference, respectively 
+(adding 12 bases that are typically lost from 5'-end by ONT sequencing). 
+
 First download the data
 
 ```bash
-mkdir -p test; cd test
+cd ~/src/polyTailor/test
 wget https://public-docs.crg.es/enovoa/public/lpryszcz/src/polyTailor/test/{ref,minimap2} -q --show-progress -r -c -nc -np -nH --cut-dirs=6 --reject="index.html*"
 ```
 
 Then process all aligned reads with polyTailor:
 ```bash
 cd test
-for f in minimap2/DNA_standards_R10_dorado_sup/*.bam; do
+for f in minimap2/DNA_standards/*.bam; do
   echo $f;
-  python ../src/get_pt.py -b $f -o $f.pT.tsv \
+  python ../src/get_pt.py -b $f -o $f.pT.tsv.gz \
     -p CAGCACCTCTTCCGATCACTTGCCTGTCGCTCTATCTTC;
 done
 ```
@@ -112,6 +119,13 @@ a1eea540-b878-4bdd-9251-9ac65f475200	unknown	60	not_continuous	19.0	2.6	107	CTTC
 692be019-144c-486a-b329-81c0a44f93d8	unknown	60	not_continuous	27.5	2.5	101	ATCTTCCCCC	TTTTTTTTT
 ```
 
+In addition, you can produce below figures using
+[/notebook/DNA_standards.ipynb](/notebook/DNA_standards.ipynb)
+
+![DNA standards: length](/notebook/DNA_standards.length.png "DNA standards: length")
+![DNA standards: iternal bases](/notebook/DNA_standards.iternal.png "DNA standards: iternal bases")
+![DNA standards: ends](/notebook/DNA_standards.ends.png "DNA standards: ends")
+
 ### Yeast total RNA
 
 Here, new N3PS oligo `CAGCACCT ACTTGCCTGTCGCTCTATCTGCAGAGCAGAG` was used,
@@ -145,7 +159,7 @@ follow these steps:
 0. Download reference genome and raw reads in pod5 format
 
 ```bash
-mkdir -p test; cd test
+cd ~/src/polyTailor/test
 wget https://public-docs.crg.es/enovoa/public/lpryszcz/src/polyTailor/test/{ref,reads} -q --show-progress -r -c -nc -np -nH --cut-dirs=6 --reject="index.html*"
 ```
 

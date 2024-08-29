@@ -127,7 +127,7 @@ def get_pA_sites(outfn, gtf, fnames, samples=[], min_count=25, mapq=10,
                 # we need to extend antisense transcripts
                 s -= extend
             # get counts for each alt pA site
-            peak_counts = np.array([counts[:, ps:pe].sum(axis=1).flatten() for ps, pe in se])
+            peak_counts = np.array([counts[:, ps:pe].sum(axis=1).flatten() for ps, pe in se]); print(centers, se, peak_counts)
             sel = peak_counts.sum(axis=1)/peak_counts.sum(axis=1).max() >= min_frac
             # store frequencies and counts for each pA
             for ii, (center, (ps, pe)) in enumerate(zip(centers[sel], se[sel]), 1):
@@ -220,7 +220,7 @@ def main():
                         help="antisense strand sequencing ie cDNA [sense strand sequencing ie DRS]")
     parser.add_argument("-e", "--extend", default=1000, type=int,  
                         help="extend gene by [%(default)s bases]")
-    parser.add_argument("-f", "--min_frac", default=0.05,  
+    parser.add_argument("-f", "--min_frac", default=0.05, type=float,  
                         help="report pA sites with at least [%(default)s] reads of max pA site for given gene")
     parser.add_argument("-t", "--threads", default=6, type=int, 
                         help="no. of threads to use [%(default)s]")

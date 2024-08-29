@@ -31,9 +31,11 @@ All above can be installed using conda and pip:
 conda create -c conda-forge -c bioconda -n polyTailor python=3.10 samtools minimap2 isoquant
 conda activate polyTailor
 pip install matplotlib numpy parasail pybedtools pysam pandas scipy seaborn htseq
+mkdir -p ~/src && cd ~/src
+git clone https://github.com/novoalab/polyTailor.git
 ```
 
-- [dorado](https://github.com/nanoporetech/dorado) v0.7.2+ and basecalling models
+- [dorado](https://github.com/nanoporetech/dorado) v0.7.2+ and basecalling models. 
 Here, we assume Linux x64 system. For other systems, please see
 [dorado page](https://github.com/nanoporetech/dorado?tab=readme-ov-file#installation)
 .
@@ -101,7 +103,7 @@ This will produce a TAB-delimited file with following columns:
    - N3PS primer was detected in the 5' clipped part (otherwise `no_primer`)
    - the N3PS primer aligned end-to-end (otherwise `not_complete`)
    - pT sequence was detected between primer and aligned transcript (otherwise `no_pT`)
-   - the pT is immediately following primer (otherwise not_continuous)
+   - the pT is immediately following primer (otherwise `not_continuous`)
 5. pt_len - estimated poly-T length. 
 6. per_base - helicase speed estimated from mv table (mean number of chunks per base)
 7. pt_start - poly-T start in read sequence
