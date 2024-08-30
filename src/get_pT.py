@@ -80,7 +80,7 @@ def alg2pt(a, primer, profile, open_penalty, extend_penalty,
            extension=5, analyse_first=250, minscore=41):
     """Return sequence flanking pt, pt start, pt end, pt length, pt sequence, alignment score, identity and cigar"""
     info = "OK"
-    empty = (0, 0, 0, "", "")
+    empty = (0, 0, 0, 0, "", "")
     # get size of clipped region of the read (from the 5' read end)
     clipped = 0
     if a.cigar:
@@ -123,7 +123,7 @@ def alg2pt(a, primer, profile, open_penalty, extend_penalty,
     per_base = steps[:s-extension].mean() #steps[e+extension+1:].mean()
     # here we should capture and remove stalls
     pt_len = round(steps[s-extension:e+extension+1].sum()/per_base - 2*extension, 1)
-    return info, pt_len, per_base, s, seq[s-10:s], seq[s:e]
+    return info, pt_len, per_base, pt_start, s, seq[s-10:s], seq[s:e]
 
 def get_pT(out, bam, readidsfn, endsfn, primer, scoring=(2, 3, 3, 2), logger=sys.stderr):
     """
@@ -157,8 +157,8 @@ def get_pT(out, bam, readidsfn, endsfn, primer, scoring=(2, 3, 3, 2), logger=sys
     if logger: logger.write(f"Processing reads...\n")
     sam = pysam.AlignmentFile(bam, check_sq=False)
     #ref2len = {r: l for r, l in zip(sam.references, sam.lengths)
-    out.write("read_id\tbarcode\tmapq\tfilter\tpt_length\tper_base\tpt_start\tbefore_pt\tpt_seq\ttranscript_end\tdistance\tcomment\n")
-    outline = "%s\t%s\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%s\n"
+    out.write("read_id\tbarcode\tmapq\tfilter\tpt_length\tper_base\tprimer_end\tpt_start\tbefore_pt\tpt_seq\ttranscript_end\tdistance\tcomment\n")
+    outline = "%s\t%s\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
     #try:
     for ai, a in enumerate(sam, 1):
         if not ai%1000: logger.write(f" {ai:,} \r")

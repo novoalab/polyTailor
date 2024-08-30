@@ -106,21 +106,22 @@ This will produce a TAB-delimited file with following columns:
    - the pT is immediately following primer (otherwise `not_continuous`)
 5. pt_len - estimated poly-T length. 
 6. per_base - helicase speed estimated from mv table (mean number of chunks per base)
-7. pt_start - poly-T start in read sequence
-8. before_pt - sequence before detected poly-T (terminal bases of poly-A)
-9. pt_seq - poly-T sequence composition
-10. transcript_end - 
-11. distance - distance from the transcript end
-12. comments - additional fields passed from `-i / --readids` file
+7. primer_end - position of the N3PS primer end in the read sequence
+8. pt_start - position of the poly-T start in the read sequence
+9. before_pt - sequence before detected poly-T (terminal bases of poly-A)
+10. pt_seq - poly-T sequence composition
+11. transcript_end - 
+12. distance - distance from the transcript end
+13. comments - additional fields passed from `-i / --readids` file
 
 Note, there may be multiple comments columns,
 depending on provided `-i / --readids` file.
 
 For example, for `isoquant` example above, you'll see:
 
-12. isoform_id  
-13. assignment_type  
-14. additional_info  
+13. isoform_id  
+14. assignment_type  
+15. additional_info  
 
 ## Test dataset
 
