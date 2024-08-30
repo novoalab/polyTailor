@@ -94,7 +94,10 @@ src/get_pT.py -o pT.tsv.gz -b algs.bam \
   -i <(zgrep -v '^#' isoquant/OUT/OUT.read_assignments.tsv.gz | cut -f1,4,6,9)
 ```
 
-This will produce a TAB-delimited file with following columns:
+### Output
+
+PolyTailor will produce a TAB-delimited file with following columns:
+
 1. read_id
 2. barcode - detected barcode (`unknown` if no barcode detected)
 3. mapq - mapping quality
@@ -110,14 +113,14 @@ This will produce a TAB-delimited file with following columns:
 8. pt_start - position of the poly-T start in the read sequence
 9. before_pt - sequence before detected poly-T (terminal bases of poly-A)
 10. pt_seq - poly-T sequence composition
-11. transcript_end - 
+11. transcript_end - present if read end is associated with any of predicted transcript ends
 12. distance - distance from the transcript end
 13. comments - additional fields passed from `-i / --readids` file
 
 Note, there may be multiple comments columns,
 depending on provided `-i / --readids` file.
 
-For example, for `isoquant` example above, you'll see:
+For `isoquant` example above, you'll see:
 
 13. isoform_id  
 14. assignment_type  
