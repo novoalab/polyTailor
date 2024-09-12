@@ -1,6 +1,6 @@
 # polyTailor
 
-<img align="right" src="/img/logo.png">
+<img align="right" width="600" src="/img/logo.png">
 
 - [Brief description](#Brief-description)
 - [Installation](#Installation)
