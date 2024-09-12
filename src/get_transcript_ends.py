@@ -127,7 +127,7 @@ def get_pA_sites(outfn, gtf, fnames, samples=[], min_count=25, mapq=10,
                 # we need to extend antisense transcripts
                 s -= extend
             # get counts for each alt pA site
-            peak_counts = np.array([counts[:, ps:pe].sum(axis=1).flatten() for ps, pe in se]); print(centers, se, peak_counts)
+            peak_counts = np.array([counts[:, ps:pe].sum(axis=1).flatten() for ps, pe in se])
             sel = peak_counts.sum(axis=1)/peak_counts.sum(axis=1).max() >= min_frac
             # store frequencies and counts for each pA
             for ii, (center, (ps, pe)) in enumerate(zip(centers[sel], se[sel]), 1):

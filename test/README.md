@@ -48,7 +48,7 @@ done
 for f in minimap2/DNA_standards/*.bam.pT.tsv.gz; do echo $f; zcat $f|head; done
 ```
 
-This will produce an output file for each BAM file similar to this:
+This will produce an output file for each BAM file similar to these:
 
 - minimap2/DNA_standards/30A.bam.pT.tsv.gz: 30 bases long poly-A tails
 
@@ -63,6 +63,36 @@ b016d2c7-bf3c-4352-bc9c-a1ceeb05dc4b	unknown	60	no_primer	0	0.0	0	0
 25056f68-1672-4476-9aa3-da3d36571150	unknown	60	not_continuous	33.4	2.0	105	106	TCTATTACTC	TTT
 5fa7b265-720f-4baa-9c5f-c0aff976e89f	unknown	60	not_continuous	26.7	2.0	111	112	TCTATCTTTC	TTTTTTTTTTTTTTTTTT
 80a1a47e-a6f8-41dd-810c-ffc4e8382ed7	unknown	60	OK	18.9	2.3	99	99	CTCTATCTTC	TTTTTTTTTTTTTTTTTTTTTTT
+```
+
+- minimap2/DNA_standards/3U.bam.pT.tsv.gz: 27 bases long poly-A tails with 3 terminal U bases `-UUU`
+
+```bash
+read_id	barcode	mapq	filter	pt_length	per_base	primer_end	pt_start	before_pt	pt_seq	transcript_end	distance	comment
+141fd2e1-5e6a-4563-8ae8-cdc7ba970420	unknown	60	no_primer	0	0.0	0	0
+e6c7cbb2-e3b0-42e3-81d2-232c3095c247	unknown	60	not_continuous	12.3	2.5	100	103	TATCTTCAAA	TTTTTTTTTTTTTTTTTTT
+6fce380f-d07f-43c9-bbd4-4388b2ebbefb	unknown	60	not_continuous	17.0	2.0	103	106	ATCTCTCAAA	TTTTTTTTTTTTTTTTTTTTT
+1d19cf3b-6dd7-466b-acb4-098217dbb7db	unknown	60	not_continuous	31.1	2.7	102	105	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTTTT
+e35251ce-8eff-4404-8229-5c51d12a805d	unknown	60	not_continuous	12.6	2.6	103	106	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTT
+b905967e-b1b8-4f3f-a8b9-618019281d0c	unknown	60	not_continuous	23.5	2.0	106	109	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTTT
+4c1cf405-f654-424b-81bc-f49d53771a07	unknown	60	not_continuous	27.9	2.5	93	96	TATCTTCAAA	TTTTTTTTT
+a5fceb81-fdb7-4940-b65c-e6ca470b7b7c	unknown	60	not_continuous	25.4	1.7	111	114	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTTT
+61e1a025-cbe1-47bc-b914-3e245cbed9a6	unknown	60	not_continuous	31.3	2.2	105	108	TATCTTCAAA	TTTTTTTTTTTTTTTTTTTTT
+```
+
+- minimap2/DNA_standards/IntG.bam.pT.tsv.gz: 15 As followed by 3 GAAAA repeats
+
+```bash
+read_id	barcode	mapq	filter	pt_length	per_base	primer_end	pt_start	before_pt	pt_seq	transcript_end	distance	comment
+c8dac82d-84ab-4e20-8009-2167b7e3e663	unknown	60	OK	18.9	2.1	103	103	CTCTATCTTC	TTTTCTTTTCTTTTCTTTTTTTT
+ca553d91-932f-4d38-904a-30032dac1a41	unknown	60	OK	17.8	2.8	98	98	CGCTATTTTC	TTTCTTTCTTTCTTTTTTTTT
+c25281bc-cca0-457c-aa6d-7a549225aa77	unknown	60	OK	21.1	2.6	103	103	CTCTATCTTC	TTTTCTTTTCTTTTCTTTTTTTTTTTTTTTT
+f0a8d4b0-c6c2-447f-a828-d9d094bc50c4	unknown	60	OK	22.5	2.2	103	103	CTCTATCTTC	TTTTCTTTTCTTTTCTTTTTTTTTTTTT
+f5463600-ff47-45fc-a383-1dea01ebb638	unknown	60	OK	38.3	1.9	108	108	TATTATCTTC	TTTTCTTTTCTTTCTTTTTTTTTTTTTTTT
+9ea3e226-c471-462f-b778-6c68d48d02b1	unknown	60	OK	28.5	2.1	99	99	CTCTATCTTC	TTTTCTTTTCTTTTCTTTTTTTTTTTTTTTT
+6b5ed755-3d08-4b2d-b657-6eeb442d00fc	unknown	60	OK	17.8	2.4	103	103	CTCTATCTTC	TTTTCTTTTCTTTTCTTTTTTTTTTTTTTT
+0274dc63-22a2-4da9-b4c9-7ceeff7761ff	unknown	60	OK	30.1	2.0	108	108	CTCTATCTTC	TTTTCTTTTCTTTTCTTTTTTTTTTTT
+4fb0624c-4fa2-4660-b9ab-62409bf7b522	unknown	10	no_clip	0	0.0	0	0
 ```
 
 Additional figures can be generated using
@@ -149,6 +179,7 @@ dorado basecaller \
 2. Align
 
 ```bash
+conda activate polyTailor
 mkdir -p minimap2/yeast
 for f in dorado/yeast/*.bam; do
   echo `date` $f; 

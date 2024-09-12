@@ -1,5 +1,7 @@
 # polyTailor
 
+<img align="right" src="/img/logo.png">
+
 - [Brief description](#Brief-description)
 - [Installation](#Installation)
 - [How to run?](#How-to-run?)
